@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    platform: linux/amd64
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    platform: linux/amd64
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    platform: linux/amd64
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "8085:8080"
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    platform: linux/amd64
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    ports:
+      - "8081:8081"
+
+  ibm-mq:
+    image: ibmcom/mq:latest
+    container_name: ibm-mq
+    platform: linux/amd64
+    environment:
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+      MQ_APP_PASSWORD: password
+    ports:
+      - "1414:1414"
+      - "9443:9443"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.4
+    container_name: keycloak
+    command: start-dev
+    ports:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+  intelli-claim-api:
+    build: ./intelli-claim-api
+    container_name: intelli-claim-api
+    ports:
+      - "8082:8082"
+    depends_on:
+      - kafka
+      - mongodb
+      - ibm-mq
+      - keycloak
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/intelli_claim
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      IBM_MQ_HOST: ibm-mq
+      IBM_MQ_PORT: 1414
+      IBM_MQ_CHANNEL: DEV.APP.SVRCONN
+      IBM_MQ_QMGR: QM1
+      IBM_MQ_USER: app
+      IBM_MQ_PASSWORD: password
+      KEYCLOAK_URL: http://keycloak:8080
+
+  intelli-claim-ui:
+    build: ./intelli-claim-ui
+    container_name: intelli-claim-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - intelli-claim-api
+      - keycloak
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8082
+      NEXT_PUBLIC_KEYCLOAK_URL: http://localhost:8080
+
+volumes:
+  mongo_data:
