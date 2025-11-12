@@ -9,7 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ark-ui/react": "5.4.0",
     "@hdfclife-insurance/one-x-ui": "0.5.3",
+    "@internationalized/date": "^3.7.0",
+    "@phosphor-icons/react": "^2.1.7",
+    "@radix-ui/react-scroll-area": "^1.2.3",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@tanstack/match-sorter-utils": "^8.19.4",
+    "@tanstack/react-table": "^8.21.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "uuid": "^10.0.0",
     "axios": "^1.13.2",
     "next": "16.0.1",
