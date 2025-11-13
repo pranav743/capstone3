@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { AuthManager } from "@/Auth/AuthManager";
 
 
@@ -14,26 +14,28 @@ export type UserInfoData = {
 }
 
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const authManager = AuthManager.getInstance();
   try {
-    const userInfo = authManager.getUserInfo();
+    const userInfo = authManager.getUserInfo(request);
+    console.log("User Info1:", userInfo);
     const userInfoData = {
-        exp: userInfo.exp,
-        iat: userInfo.iat,
-        roles: userInfo.resource_access.getAttribute('capstone-3')?.roles,
-        username: userInfo.name,
-        preferred_username: userInfo.preferred_username,
-        email: userInfo.email,
-        name: userInfo.given_name,
-        family_name: userInfo.family_name
+      exp: userInfo.exp,
+      iat: userInfo.iat,
+      roles: userInfo.resource_access?.['capstone-3']?.roles,
+      username: userInfo.preferred_username,
+      preferred_username: userInfo.preferred_username,
+      email: userInfo.email,
+      name: userInfo.name,
+      family_name: userInfo.family_name
     }
     return NextResponse.json(userInfoData, { status: 200 });
   } catch (error) {
-    authManager.logout();
-    return NextResponse.json(
+    const res = NextResponse.json(
       { error: "Failed to fetch user info : " + error },
       { status: 500 }
     );
+    authManager.logout(request, res);
+    return res;
   }
 }

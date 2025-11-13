@@ -1,13 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { AuthManager } from "@/Auth/AuthManager";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Attempt logout using AuthManager
     const authManager = AuthManager.getInstance();
     try {
-      await authManager.logout();
-      return NextResponse.redirect(new URL("/login", request.url));
+      const res = NextResponse.json(
+        { message: "Logout successful" },
+        { status: 200 }
+      );
+      await authManager.logout(request, res);
+      return res;
     } catch (error) {
       return NextResponse.json(
         { error: "Not able to Logout: " + error },

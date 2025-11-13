@@ -53,12 +53,12 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams.toString();
     const page = Number(req.nextUrl.searchParams.get('page')) || 1;
     const url = searchParams ? `${backendUrl}?${searchParams}` : backendUrl;
-    const isUserLoggedIn = authManager.isAuthenticated();
+    const isUserLoggedIn = authManager.isAuthenticated(req);
     // if (!isUserLoggedIn) {
     //     authManager.logout();
     //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // }
-    const roles = authManager.getUserRoles();
+    const roles = authManager.getUserRoles(req);
     console.log("User Roles:", roles);
 
     try {

@@ -34,6 +34,7 @@ import clsx from "clsx";
 import Head from "next/head";
 import React, { useCallback, useState } from "react";
 import HLIInspireLogo from "@public/HLI_Inspire_Logo.acc056fd.png";
+import useUserInfo from "@/hooks/useUserInfo";
 
 declare module "@tanstack/react-table" {
   interface FilterFns {
@@ -46,6 +47,7 @@ declare module "@tanstack/react-table" {
 
 export default function Navbar({children}: {children: React.ReactNode}) {
   const isDesktop = useIsDesktop();
+  const { userInfo } = useUserInfo();
 
   const [open, setOpen] = useState({
     leftSection: false,
@@ -74,11 +76,11 @@ export default function Navbar({children}: {children: React.ReactNode}) {
         <div className="flex items-center justify-end gap-3 w-full">
           <div className="text-right hidden lg:block">
             <Text size="sm" fontWeight="bold">
-              Sujoy Guru
+              {userInfo?.preferred_username}
             </Text>
-            <Text size="sm">Key Account Manager</Text>
+            <Text size="sm">{userInfo?.name}</Text>
             <Caption className="italic">
-              Last login : 03/09/2024 12:21 pm
+              {userInfo?.roles?.join(", ")}
             </Caption>
           </div>
           <Avatar

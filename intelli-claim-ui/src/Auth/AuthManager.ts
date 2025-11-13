@@ -1,5 +1,7 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { NextApiResponse } from "next";
+import { NextRequest, NextResponse } from "next/server";
 
 interface AuthTokenResponse {
   access_token: string;
@@ -28,8 +30,8 @@ export class AuthManager {
     return AuthManager.instance;
   }
 
-  public async refreshToken(): Promise<void> {
-    const refreshToken = this.getRefreshToken();
+  public async refreshToken(req: NextRequest, res: NextResponse): Promise<void> {
+    const refreshToken = this.getRefreshToken(req);
     if (!refreshToken) {
       throw new Error("No refresh token available");
     }
@@ -45,19 +47,36 @@ export class AuthManager {
 
     const expiresIn = response.data.expires_in;
     const refreshExpiresIn = response.data.refresh_expires_in;
+    
+    // Calculate expiry dates
+    const accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
+    const refreshTokenExpiry = new Date(Date.now() + refreshExpiresIn * 1000);
+    
     // Update tokens in cookies
-    Cookies.set("access_token", response.data.access_token, {
-      expires: expiresIn / 86400,
+    res.cookies.set("access_token", response.data.access_token, {
+      expires: accessTokenExpiry,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "lax",
+      path: "/",
     });
-    Cookies.set("refresh_token", response.data.refresh_token, {
-      expires: refreshExpiresIn / 86400,
+    res.cookies.set("refresh_token", response.data.refresh_token, {
+      expires: refreshTokenExpiry,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "lax",
+      path: "/",
     });
-    Cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
-      expires: expiresIn / 86400,
+    res.cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
+      expires: accessTokenExpiry,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: "lax",
+      path: "/",
     });
   }
 
-  public async login(username: string, password: string): Promise<void> {
+  public async login(username: string, password: string, res: NextResponse): Promise<any> {
     const params = new URLSearchParams();
     params.append("username", username);
     params.append("password", password);
@@ -73,36 +92,66 @@ export class AuthManager {
 
       const expiresIn = response.data.expires_in;
       const refreshExpiresIn = response.data.refresh_expires_in;
+      
+      const accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
+      const refreshTokenExpiry = new Date(Date.now() + refreshExpiresIn * 1000);
+      
       // Set tokens in cookies
-      Cookies.set("access_token", response.data.access_token, {
-        expires: expiresIn / 86400,
+      console.log("Response.data:", response.data);
+      console.log("Setting cookies with expiry:", {
+        accessTokenExpiry: accessTokenExpiry.toISOString(),
+        refreshTokenExpiry: refreshTokenExpiry.toISOString()
       });
-      Cookies.set("refresh_token", response.data.refresh_token, {
-        expires: refreshExpiresIn / 86400,
+      
+      res.cookies.set("access_token", response.data.access_token, {
+        expires: accessTokenExpiry,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "lax",
+        path: "/",
       });
-      Cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
-        expires: expiresIn / 86400,
+      res.cookies.set("refresh_token", response.data.refresh_token, {
+        expires: refreshTokenExpiry,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "lax",
+        path: "/",
+      });
+      res.cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
+        expires: accessTokenExpiry,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "lax",
+        path: "/",
       });
 
       const userInfo = this.getInfoFromToken(response.data.access_token);
       console.log("User info:", userInfo);
-      Cookies.set("user_info", JSON.stringify(userInfo), { expires: 7 });
+      res.cookies.set("user_info", JSON.stringify(userInfo), { 
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: "lax",
+        path: "/"
+      });
+      return userInfo;
     } catch (error) {
+      console.error("Login error:", error);
       throw new Error("Login failed : " + error);
     }
   }
 
-  public getToken(): string | null {
-    const token = Cookies.get("access_token");
-    const expiry = Cookies.get("token_expiry");
+  public getToken(req: NextRequest): string | null {
+    const token = req.cookies.get("access_token")?.value;
+    const expiry = req.cookies.get("token_expiry")?.value;
     if (token && expiry && Date.now() < parseInt(expiry)) {
       return token;
     }
     return null;
   }
 
-  public async logout(): Promise<void> {
-    const refreshToken = this.getRefreshToken();
+  public async logout(req: NextRequest, res: NextResponse): Promise<void> {
+    const refreshToken = this.getRefreshToken(req);
     if (refreshToken) {
       try {
         const params = new URLSearchParams();
@@ -119,10 +168,12 @@ export class AuthManager {
         console.error("Error during logout:", error);
       }
     }
-    Cookies.remove("access_token");
-    Cookies.remove("refresh_token");
-    Cookies.remove("token_expiry");
-    Cookies.remove("user_info");
+    
+    // Clear all auth cookies
+    res.cookies.delete("access_token");
+    res.cookies.delete("refresh_token");
+    res.cookies.delete("token_expiry");
+    res.cookies.delete("user_info");
   }
 
   private getInfoFromToken(token: string): any {
@@ -131,23 +182,24 @@ export class AuthManager {
     return JSON.parse(decodedPayload);
   }
 
-  public isAuthenticated(): boolean {
-    return !!this.getToken();
+  public isAuthenticated(req: NextRequest): boolean {
+    return !!this.getToken(req);
   }
 
-  public getRefreshToken(): string | null {
-    return Cookies.get("refresh_token") || null;
+  public getRefreshToken(req: NextRequest): string | null {
+    return req.cookies.get("refresh_token")?.value || null;
   }
 
-  public getUserRoles(): string[] {
-    const userInfo = this.getUserInfo();
-    const roles = userInfo?.resource_access.getAttribute('capstone-3')?.roles;
+  public getUserRoles(req: NextRequest): string[] {
+    const userInfo = this.getUserInfo(req);
+    const roles = userInfo?.resource_access?.['capstone-3']?.roles;
+    console.log("User roles from token:", userInfo?.resource_access);
     return roles || [];
   }
 
-  public getUserInfo(): any {
-    const userInfo = Cookies.get("user_info");
-    const expiry = Cookies.get("token_expiry");
+  public getUserInfo(req: NextRequest): any {
+    const userInfo = req.cookies.get("user_info")?.value;
+    const expiry = req.cookies.get("token_expiry")?.value;
     if (!userInfo || !expiry || Date.now() >= parseInt(expiry)) {
       return null;
     }
