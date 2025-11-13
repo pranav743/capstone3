@@ -1,9 +1,11 @@
 import React from 'react'
-
+import ClaimsTable from './ClaimsTable'
 
 const page = () => {
   return (
-    <div>show-claim</div>
+    <div>
+        <ClaimsTable />
+    </div>
   )
 }
 

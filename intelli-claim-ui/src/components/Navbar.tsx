@@ -152,7 +152,7 @@ export default function Navbar({children}: {children: React.ReactNode}) {
         {/* Left Sidebar Mobile */}
         {!isDesktop && (
           <Drawer
-            open={false}
+            open={open.leftSection}
             onClose={() => setOpen((prev) => ({ ...prev, leftSection: false }))}
             direction="left"
           >
