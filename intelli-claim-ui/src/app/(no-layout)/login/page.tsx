@@ -14,11 +14,68 @@ import {
   TextField,
 } from "@hdfclife-insurance/one-x-ui";
 import { Eye, EyeSlash } from "@phosphor-icons/react";
-import { useState } from "react";
+import React, { useState } from "react";
 import LoginPageHero from "../../../../public/login-page-hero.png";
+
+interface LoginFormData {
+  username: string;
+  password: string;
+}
 
 const Login = () => {
   const [toggle, setToggle] = useState(false);
+
+  // moved state + handlers here so the form actually uses them
+  const [loginFormData, setLoginFormData] = useState<LoginFormData>({
+    username: "",
+    password: "",
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setLoginFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Accepts either a form submit event or button click event (or undefined)
+ const handleLoginSubmit = async (e?: React.SyntheticEvent) => {
+  e?.preventDefault();
+
+  if (!loginFormData.username || !loginFormData.password) {
+    alert("Please enter both username and password");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(loginFormData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.message);
+      return;
+    }
+
+    console.log("Login success:", data);
+    alert("Login successful!");
+
+  } catch (err) {
+    console.error("Login error:", err);
+    alert("Something went wrong!");
+  }
+
+  setLoginFormData({ username: "", password: "" });
+};
+
+
   return (
     <div className="flex flex-col justify-center lg:min-h-dvh lg:px-10">
       {/* Main content  */}
@@ -36,16 +93,22 @@ const Login = () => {
               <Heading as="h3">Welcome back,</Heading>
               <Caption className="text-gray-700">Login to get Started</Caption>
             </div>
-            <form className="space-y-4">
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
               <TextField
                 variant="underline"
-                label="Email Id"
-                placeholder="Email ID"
+                label="Username"
+                placeholder="Username"
+                name="username"
+                value={loginFormData.username}
+                onChange={handleInputChange}
               />
               <TextField
                 placeholder="XXXXXX"
                 variant="underline"
                 label="Password"
+                name="password"
+                value={loginFormData.password}
+                onChange={handleInputChange}
                 type={!toggle ? "password" : "text"}
                 rightSection={
                   <IconButton
@@ -63,7 +126,8 @@ const Login = () => {
                   Forget Password?
                 </Button>
               </div>
-              <Button size="lg" fullWidth>
+              {/* keep onClick but also make this a submit so Enter key works */}
+              <Button type="submit" onClick={(e) => handleLoginSubmit(e)} size="lg" fullWidth>
                 Login
               </Button>
             </form>
