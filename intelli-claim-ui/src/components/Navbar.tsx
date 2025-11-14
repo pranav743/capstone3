@@ -27,14 +27,13 @@ import {
   Users,
 } from "@phosphor-icons/react";
 import { RankingInfo } from "@tanstack/match-sorter-utils";
-import {
-  FilterFn
-} from "@tanstack/react-table";
+import { FilterFn } from "@tanstack/react-table";
 import clsx from "clsx";
 import Head from "next/head";
 import React, { useCallback, useState } from "react";
 import HLIInspireLogo from "@public/HLI_Inspire_Logo.acc056fd.png";
 import useUserInfo from "@/hooks/useUserInfo";
+import { logout } from "@/lib/auth";
 
 declare module "@tanstack/react-table" {
   interface FilterFns {
@@ -45,7 +44,7 @@ declare module "@tanstack/react-table" {
   }
 }
 
-export default function Navbar({children}: {children: React.ReactNode}) {
+export default function Navbar({ children }: { children: React.ReactNode }) {
   const isDesktop = useIsDesktop();
   const { userInfo } = useUserInfo();
 
@@ -79,9 +78,7 @@ export default function Navbar({children}: {children: React.ReactNode}) {
               {userInfo?.preferred_username}
             </Text>
             <Text size="sm">{userInfo?.name}</Text>
-            <Caption className="italic">
-              {userInfo?.roles?.join(", ")}
-            </Caption>
+            <Caption className="italic">{userInfo?.roles?.join(", ")}</Caption>
           </div>
           <Avatar
             variant="outline"
@@ -150,6 +147,14 @@ export default function Navbar({children}: {children: React.ReactNode}) {
               },
             ]}
           />
+          <Button
+            variant="tertiary"
+            size="sm"
+            startIcon={<Power />}
+            onClick={logout}
+          >
+            Logout
+          </Button>
         </aside>
         {/* Left Sidebar Mobile */}
         {!isDesktop && (
@@ -188,7 +193,12 @@ export default function Navbar({children}: {children: React.ReactNode}) {
                   <NavLink href="#" label="Settings" leftSection={<Gear />} />
                 </div>
               </ScrollArea>
-              <Button variant="tertiary" size="sm" startIcon={<Power />}>
+              <Button
+                variant="tertiary"
+                size="sm"
+                startIcon={<Power />}
+                onClick={logout}
+              >
                 Logout
               </Button>
             </DrawerContent>
@@ -202,7 +212,7 @@ export default function Navbar({children}: {children: React.ReactNode}) {
             } as React.CSSProperties
           }
           className={clsx(
-            "flex-1 px-4 lg:px-0 pb-[var(--gutter)] pt-[calc(var(--header-height)+var(--gutter))] lg:pl-[calc(var(--gutter)+var(--left-sidebar-width))] lg:pr-[calc(var(--right-sidebar-width)+var(--gutter))] duration-300 ease-in-out transition-[padding] overflow-x-hidden",
+            "flex-1 px-4 lg:px-0 pb-[var(--gutter)] pt-[calc(var(--header-height)+var(--gutter))] lg:pl-[calc(var(--gutter)+var(--left-sidebar-width))] lg:pr-[calc(var(--right-sidebar-width)+var(--gutter))] duration-300 ease-in-out transition-[padding] overflow-x-hidden"
           )}
         >
           {children}

@@ -1,7 +1,6 @@
 import axios from "axios";
-import Cookies from "js-cookie";
-import { NextApiResponse } from "next";
 import { NextRequest, NextResponse } from "next/server";
+import { KEYCLOAK_CLIENT_SECRET } from "../constants";
 
 interface AuthTokenResponse {
   access_token: string;
@@ -14,12 +13,35 @@ interface AuthTokenResponse {
   scope: string;
 }
 
+interface UserInfo {
+  exp: number;
+  iat: number;
+  preferred_username: string;
+  email: string;
+  name: string;
+  family_name: string;
+  resource_access?: {
+    [key: string]: {
+      roles: string[];
+    };
+  };
+  [key: string]: unknown;
+}
+
 export class AuthManager {
   private static instance: AuthManager;
 
-  private authUrl =
+  private tokenUrl =
     "http://localhost:8080/realms/master/protocol/openid-connect/token";
   private clientId = "capstone-3";
+  private clientSecret = KEYCLOAK_CLIENT_SECRET;
+  private logoutUrl =
+    "http://localhost:8080/realms/master/protocol/openid-connect/logout";
+  private introspectUrl =
+    "http://localhost:8080/realms/master/protocol/openid-connect/token/introspect";
+  private refreshUrl =
+    "http://localhost:8080/realms/master/protocol/openid-connect/token";
+
 
   private constructor() {}
 
@@ -30,7 +52,10 @@ export class AuthManager {
     return AuthManager.instance;
   }
 
-  public async refreshToken(req: NextRequest, res: NextResponse): Promise<void> {
+  public async refreshToken(
+    req: NextRequest,
+    res: NextResponse
+  ): Promise<void> {
     const refreshToken = this.getRefreshToken(req);
     if (!refreshToken) {
       throw new Error("No refresh token available");
@@ -39,105 +64,126 @@ export class AuthManager {
     const params = new URLSearchParams();
     params.append("grant_type", "refresh_token");
     params.append("client_id", this.clientId);
+    params.append("client_secret", this.clientSecret);
     params.append("refresh_token", refreshToken);
 
-    const response = await axios.post<AuthTokenResponse>(this.authUrl, params, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    try {
+      const response = await axios.post<AuthTokenResponse>(this.tokenUrl, params, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
 
-    const expiresIn = response.data.expires_in;
-    const refreshExpiresIn = response.data.refresh_expires_in;
-    
-    // Calculate expiry dates
-    const accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
-    const refreshTokenExpiry = new Date(Date.now() + refreshExpiresIn * 1000);
-    
-    // Update tokens in cookies
-    res.cookies.set("access_token", response.data.access_token, {
-      expires: accessTokenExpiry,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "lax",
-      path: "/",
-    });
-    res.cookies.set("refresh_token", response.data.refresh_token, {
-      expires: refreshTokenExpiry,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "lax",
-      path: "/",
-    });
-    res.cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
-      expires: accessTokenExpiry,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: "lax",
-      path: "/",
-    });
+      const expiresIn = response.data.expires_in;
+      const refreshExpiresIn = response.data.refresh_expires_in;
+
+      // Update tokens in cookies
+      res.cookies.set("access_token", response.data.access_token, {
+        maxAge: expiresIn,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+      
+      res.cookies.set("refresh_token", response.data.refresh_token, {
+        maxAge: refreshExpiresIn,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+      
+      res.cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
+        maxAge: expiresIn,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+      
+      const userInfo = this.getInfoFromToken(response.data.access_token);
+      console.log("Token refreshed, user info:", userInfo);
+      
+      res.cookies.set("user_info", JSON.stringify(userInfo), {
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      throw new Error("Failed to refresh token");
+    }
   }
 
-  public async login(username: string, password: string, res: NextResponse): Promise<any> {
+  public async login(
+    username: string,
+    password: string,
+    res: NextResponse
+  ): Promise<UserInfo> {
     const params = new URLSearchParams();
+    console.log("Client Secret:", this.clientSecret);
     params.append("username", username);
     params.append("password", password);
     params.append("grant_type", "password");
     params.append("client_id", this.clientId);
+    params.append("client_secret", this.clientSecret);
 
     try {
       const response = await axios.post<AuthTokenResponse>(
-        this.authUrl,
+        this.tokenUrl,
         params,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
       const expiresIn = response.data.expires_in;
       const refreshExpiresIn = response.data.refresh_expires_in;
-      
-      const accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
-      const refreshTokenExpiry = new Date(Date.now() + refreshExpiresIn * 1000);
-      
+
       // Set tokens in cookies
-      console.log("Response.data:", response.data);
-      console.log("Setting cookies with expiry:", {
-        accessTokenExpiry: accessTokenExpiry.toISOString(),
-        refreshTokenExpiry: refreshTokenExpiry.toISOString()
-      });
+      console.log("Login successful, setting cookies");
       
       res.cookies.set("access_token", response.data.access_token, {
-        expires: accessTokenExpiry,
+        maxAge: expiresIn,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
       });
+      
       res.cookies.set("refresh_token", response.data.refresh_token, {
-        expires: refreshTokenExpiry,
+        maxAge: refreshExpiresIn,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
       });
+      
       res.cookies.set("token_expiry", (Date.now() + expiresIn * 1000).toString(), {
-        expires: accessTokenExpiry,
+        maxAge: expiresIn,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
       });
 
       const userInfo = this.getInfoFromToken(response.data.access_token);
-      console.log("User info:", userInfo);
-      res.cookies.set("user_info", JSON.stringify(userInfo), { 
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      console.log("User info extracted:", userInfo);
+      
+      res.cookies.set("user_info", JSON.stringify(userInfo), {
+        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        path: "/"
+        path: "/",
       });
+      
       return userInfo;
     } catch (error) {
       console.error("Login error:", error);
-      throw new Error("Login failed : " + error);
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Login failed: ${error.response?.data?.error_description || error.message}`);
+      }
+      throw new Error("Login failed: " + error);
     }
   }
 
@@ -156,27 +202,26 @@ export class AuthManager {
       try {
         const params = new URLSearchParams();
         params.append("client_id", this.clientId);
+        params.append("client_secret", this.clientSecret);
         params.append("refresh_token", refreshToken);
 
-        await axios.post(
-          "http://localhost:8080/realms/master/protocol/openid-connect/logout",
-          params,
-          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-        );
-        console.log("Successfully logged out from auth server");
+        await axios.post(this.logoutUrl, params, {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" }
+        });
+        console.log("Successfully logged out from Keycloak");
       } catch (error) {
-        console.error("Error during logout:", error);
+        console.error("Error during Keycloak logout:", error);
       }
     }
-    
+
     // Clear all auth cookies
-    res.cookies.delete("access_token");
-    res.cookies.delete("refresh_token");
-    res.cookies.delete("token_expiry");
-    res.cookies.delete("user_info");
+    res.cookies.set("access_token", "", { maxAge: 0, path: "/" });
+    res.cookies.set("refresh_token", "", { maxAge: 0, path: "/" });
+    res.cookies.set("token_expiry", "", { maxAge: 0, path: "/" });
+    res.cookies.set("user_info", "", { maxAge: 0, path: "/" });
   }
 
-  private getInfoFromToken(token: string): any {
+  private getInfoFromToken(token: string): UserInfo {
     const payload = token.split(".")[1];
     const decodedPayload = atob(payload);
     return JSON.parse(decodedPayload);
@@ -192,17 +237,48 @@ export class AuthManager {
 
   public getUserRoles(req: NextRequest): string[] {
     const userInfo = this.getUserInfo(req);
-    const roles = userInfo?.resource_access?.['capstone-3']?.roles;
+    const roles = userInfo?.resource_access?.["capstone-3"]?.roles;
     console.log("User roles from token:", userInfo?.resource_access);
     return roles || [];
   }
 
-  public getUserInfo(req: NextRequest): any {
+  public getUserInfo(req: NextRequest): UserInfo | null {
     const userInfo = req.cookies.get("user_info")?.value;
     const expiry = req.cookies.get("token_expiry")?.value;
     if (!userInfo || !expiry || Date.now() >= parseInt(expiry)) {
       return null;
     }
     return JSON.parse(userInfo);
+  }
+
+  public verifyJWT(req: NextRequest): boolean {
+    try {
+      const token = this.getToken(req);
+      if (!token) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("JWT verification failed:", error);
+      return false;
+    }
+  }
+
+  public async introspectToken(token: string): Promise<boolean> {
+    try {
+      const params = new URLSearchParams();
+      params.append("client_id", this.clientId);
+      params.append("client_secret", this.clientSecret);
+      params.append("token", token);
+
+      const response = await axios.post(this.introspectUrl, params, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      });
+
+      return response.data.active === true;
+    } catch (error) {
+      console.error("Token introspection failed:", error);
+      return false;
+    }
   }
 }
