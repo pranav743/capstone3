@@ -104,7 +104,7 @@ export class AuthManager {
       console.log("Token refreshed, user info:", userInfo);
       
       res.cookies.set("user_info", JSON.stringify(userInfo), {
-        maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+        maxAge: expiresIn,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -141,7 +141,7 @@ export class AuthManager {
 
       // Set tokens in cookies
       console.log("Login successful, setting cookies");
-      
+      console.log("Access Token:", response.data.access_token);
       res.cookies.set("access_token", response.data.access_token, {
         maxAge: expiresIn,
         httpOnly: true,
@@ -242,6 +242,13 @@ export class AuthManager {
     return roles || [];
   }
 
+  public async getUserRolesWithRefresh(req: NextRequest, res: NextResponse): Promise<string[]> {
+    const userInfo = await this.getUserInfoWithRefresh(req, res);
+    const roles = userInfo?.resource_access?.["capstone-3"]?.roles;
+    console.log("User roles from token:", userInfo?.resource_access);
+    return roles || [];
+  }
+
   public getUserInfo(req: NextRequest): UserInfo | null {
     const userInfo = req.cookies.get("user_info")?.value;
     const expiry = req.cookies.get("token_expiry")?.value;
@@ -249,6 +256,32 @@ export class AuthManager {
       return null;
     }
     return JSON.parse(userInfo);
+  }
+
+  public async getUserInfoWithRefresh(req: NextRequest, res: NextResponse): Promise<UserInfo | null> {
+    const userInfo = req.cookies.get("user_info")?.value;
+    const expiry = req.cookies.get("token_expiry")?.value;
+    
+    // If user info exists and token is not expired, return it
+    if (userInfo && expiry && Date.now() < parseInt(expiry)) {
+      return JSON.parse(userInfo);
+    }
+    
+    // Try to refresh the token if it's expired but we have a refresh token
+    const refreshToken = this.getRefreshToken(req);
+    if (refreshToken) {
+      try {
+        await this.refreshToken(req, res);
+        // After successful refresh, get the new user info from the updated cookies in response
+        const newUserInfo = res.cookies.get("user_info")?.value;
+        return newUserInfo ? JSON.parse(newUserInfo) : null;
+      } catch (error) {
+        console.error("Failed to refresh token in getUserInfo:", error);
+        return null;
+      }
+    }
+    
+    return null;
   }
 
   public verifyJWT(req: NextRequest): boolean {

@@ -17,7 +17,15 @@ export type UserInfoData = {
 export async function GET(request: NextRequest) {
   const authManager = AuthManager.getInstance();
   try {
-    const userInfo = authManager.getUserInfo(request);
+    const res = NextResponse.json({}, { status: 200 });
+    const userInfo = await authManager.getUserInfoWithRefresh(request, res);
+    
+    if (!userInfo) {
+      const errorRes = NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+      authManager.logout(request, errorRes);
+      return errorRes;
+    }
+    
     console.log("User Info1:", userInfo);
     const userInfoData = {
       exp: userInfo.exp,

@@ -1,90 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
 import { AuthManager } from '@/Auth/AuthManager';
+import { apiClient } from '@/app/api/client';
+import axios from 'axios';
 
 const authManager = AuthManager.getInstance();
 
 export interface Claim {
-    id: string;
+    id: number;
     policyNumber: string;
-    status: string;
+    claimantName: string;
     claimAmount: number;
-    dateOfClaim: string;
-    description: string;
+    fraudStatus: string;
+    status: string;
+    createdDate: string;
 }
 
 const dummyClaims: Claim[] = [
     {
-        id: '1',
-        policyNumber: 'POL123456',
-        status: 'Pending',
-        claimAmount: 1200.5,
-        dateOfClaim: '2024-06-01',
-        description: 'Accident damage to vehicle',
+        id: 1,
+        policyNumber: 'POL123455',
+        claimantName: 'Mary',
+        claimAmount: 10000.0,
+        fraudStatus: 'Accept',
+        status: 'Validated',
+        createdDate: '2025-11-16T17:18:48.414203'
     },
     {
-        id: '2',
+        id: 2,
         policyNumber: 'POL654321',
-        status: 'Approved',
-        claimAmount: 800.0,
-        dateOfClaim: '2024-05-15',
-        description: 'Water damage to property',
-    },
-    {
-        id: '3',
-        policyNumber: 'POL987654',
-        status: 'Rejected',
-        claimAmount: 500.75,
-        dateOfClaim: '2024-04-20',
-        description: 'Lost mobile phone',
-    },
-    {
-        id: '4',
-        policyNumber: 'POL456789',
+        claimantName: 'John',
+        claimAmount: 8000.0,
+        fraudStatus: 'Reject',
         status: 'Pending',
-        claimAmount: 1500.0,
-        dateOfClaim: '2024-06-10',
-        description: 'Theft of bicycle',
+        createdDate: '2025-10-10T10:00:00.000000'
+    },
+    {
+        id: 3,
+        policyNumber: 'POL987654',
+        claimantName: 'Alice',
+        claimAmount: 5000.0,
+        fraudStatus: 'Review',
+        status: 'Validated',
+        createdDate: '2025-09-05T12:30:00.000000'
+    },
+    {
+        id: 4,
+        policyNumber: 'POL456789',
+        claimantName: 'Bob',
+        claimAmount: 15000.0,
+        fraudStatus: 'Accept',
+        status: 'Pending',
+        createdDate: '2025-08-20T09:15:00.000000'
     }
 ];
 
 export async function GET(req: NextRequest) {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8082/api/claims';
-    const searchParams = req.nextUrl.searchParams.toString();
-    const page = Number(req.nextUrl.searchParams.get('page')) || 1;
-    const url = searchParams ? `${backendUrl}?${searchParams}` : backendUrl;
+    const page = Number(req.nextUrl.searchParams.get('page')) || 0;
+    const pageSize = Number(req.nextUrl.searchParams.get('pageSize')) || 10;
     const isUserLoggedIn = authManager.isAuthenticated(req);
-    // if (!isUserLoggedIn) {
-    //     authManager.logout();
-    //     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    
+    if (!isUserLoggedIn) {
+        const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        authManager.logout(req, res);
+        return res;
+    }
+    
     const roles = authManager.getUserRoles(req);
     console.log("User Roles:", roles);
 
     try {
-        // const response = await fetch(url, {
-        //     method: 'GET',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //     },
-        // });
-
-        // if (!response.ok) {
-        //     return NextResponse.json({ error: 'Failed to fetch claims from backend' }, { status: response.status });
-        // }
-
-        // const data = await response.json();
-        // Optionally process data here if needed
-        const pageSize = 2;
-        const dummyResponse = {
-            data: dummyClaims.slice(pageSize*(page-1), pageSize*page),
-            totalRecords : dummyClaims.length,
-            totalPages: Math.ceil(dummyClaims.length / pageSize),
-            currentPage: 1,
-            pageSize: pageSize,
-        }
-        return NextResponse.json(dummyResponse, { status: 200 });
+        // Try to fetch from backend API
+        const searchParams = req.nextUrl.searchParams.toString();
+        const url = searchParams ? `/claims?${searchParams}` : '/claims';
+        console.log('Fetching:', url);
+        
+        const apiRes = NextResponse.json({}, { status: 200 });
+        const serverResponse = await apiClient.get(url, { request: req, response: apiRes }, {
+            timeout: 5000
+        });
+        
+        return NextResponse.json(serverResponse.data, { status: 200 });
+        
     } catch (error) {
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('Backend API error, falling back to dummy data:', error);
+        // Fallback to dummy data
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        const pagedData = dummyClaims.slice(start, end);
+
+        const response = {
+            data: pagedData,
+            totalRecords: dummyClaims.length,
+            totalPages: Math.ceil(dummyClaims.length / pageSize),
+            currentPage: page,
+            pageSize: pageSize,
+        };
+        console.log("Fallback response data:", response);
+        return NextResponse.json(response, { status: 200 });
+    }
+}
+
+export type CreateClaimRequest = {
+    policyNumber: string;
+    claimantName: string;
+    claimAmount: number;
+}
+
+export async function POST(req: NextRequest) {
+    const isUserLoggedIn = authManager.isAuthenticated(req);
+    
+    if (!isUserLoggedIn) {
+        const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        authManager.logout(req, res);
+        return res;
+    }
+    
+    try {
+        const body: CreateClaimRequest = await req.json();
+        const apiRes = NextResponse.json({}, { status: 200 });
+        const serverResponse = await apiClient.post('/claims', body, { request: req, response: apiRes });
+        return NextResponse.json(serverResponse.data, { status: 200 });
+    } catch (error) {
+        console.error('Failed to create claim:', error);
+        if (axios.isAxiosError(error) && error.response) {
+            return NextResponse.json(
+                { error: 'Failed to create claim', details: error.response.data },
+                { status: error.response.status }
+            );
+        }
+        return NextResponse.json(
+            { error: 'Failed to create claim' },
+            { status: 500 }
+        );
     }
 }

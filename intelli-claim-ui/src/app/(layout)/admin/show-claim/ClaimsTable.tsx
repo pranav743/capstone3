@@ -1,6 +1,6 @@
 "use client";
 import useClaimsData from "@/hooks/useClaimsData";
-import { Claim } from "./tableData";
+import { Claim } from "@/app/api/claims/route";
 import {
   Button,
   Checkbox,
@@ -44,7 +44,7 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
+const fuzzyFilter: FilterFn<Claim> = (row, columnId, value, addMeta) => {
   const itemRank = rankItem(row.getValue(columnId), value);
   addMeta({
     itemRank,
@@ -94,7 +94,7 @@ export default function ClaimsTable() {
   const columnHelper = createColumnHelper<Claim>();
 
   const columns = [
-    {
+    columnHelper.display({
       id: "select",
       header: ({ table }: { table: ReactTable<Claim> }) => (
         <Checkbox
@@ -108,13 +108,13 @@ export default function ClaimsTable() {
           onChange={table.getToggleAllRowsSelectedHandler()}
         />
       ),
-      cell: ({ row }: any) => (
+      cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onChange={row.getToggleSelectedHandler()}
         />
       ),
-    },
+    }),
 
     columnHelper.accessor("id", {
       header: "ID",
@@ -126,33 +126,38 @@ export default function ClaimsTable() {
       cell: (info) => info.getValue(),
       enableSorting: true,
     }),
-    columnHelper.accessor("status", {
-      header: "Status",
+    columnHelper.accessor("claimantName", {
+      header: "Claimant Name",
       cell: (info) => info.getValue(),
       enableSorting: true,
-      filterFn: "fuzzy",
     }),
     columnHelper.accessor("claimAmount", {
       header: "Claim Amount",
       cell: (info) => Number(info.getValue()),
       enableSorting: true,
     }),
-    columnHelper.accessor("dateOfClaim", {
-      header: "Date of Claim",
+    columnHelper.accessor("fraudStatus", {
+      header: "Fraud Status",
+      cell: (info) => info.getValue(),
+      enableSorting: true,
+      filterFn: "fuzzy",
+    }),
+    columnHelper.accessor("status", {
+      header: "Status",
+      cell: (info) => info.getValue(),
+      enableSorting: true,
+      filterFn: "fuzzy",
+    }),
+    columnHelper.accessor("createdDate", {
+      header: "Created Date",
       cell: (info) => new Date(info.getValue()).toLocaleDateString(),
       enableSorting: true,
     }),
-
-    columnHelper.accessor("description", {
-      header: "Description",
-      cell: (info) => info.getValue(),
-      enableSorting: true,
-    }),
-    columnHelper.accessor("actions", {
-      id: "action",
+    columnHelper.display({
+      id: "actions",
       header: "Actions",
       enableSorting: false,
-      cell: (info) => (
+      cell: () => (
         <Flex gap={2}>
           <Button size="xs" variant="link">
             Reject
@@ -194,10 +199,12 @@ export default function ClaimsTable() {
     },
   });
 
-  const changeActiveTab = (e) => {
-    const value = e.target.getAttribute("data-value");
-    setActiveTab(value);
-    setStatus(value);
+  const changeActiveTab = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const value = (e.target as HTMLButtonElement).getAttribute("data-value");
+    if (value) {
+      setActiveTab(value);
+      setStatus(value);
+    }
     setPage(1);
   };
 
@@ -250,7 +257,7 @@ export default function ClaimsTable() {
                           {headerGroup.headers.map((header, i) => (
                             <Table.Th
                               key={i}
-                              className="!py-4 bg-indigo-50"
+                              className="py-4! bg-indigo-50"
                               style={{
                                 ...getCommonPinningStyles(header.column),
                               }}
@@ -289,10 +296,10 @@ export default function ClaimsTable() {
                       <Table.Body>
                         {table.getRowModel().rows.map((row, i) => (
                           <Table.Row key={i}>
-                            {row.getVisibleCells().map((cell, cellIndex) => (
+                            {row.getVisibleCells().map((cell) => (
                               <Table.Cell
-                                key={cellIndex}
-                                className="!py-4"
+                                key={cell.id}
+                                className="py-4!"
                                 style={{
                                   ...getCommonPinningStyles(cell.column),
                                 }}
@@ -311,7 +318,7 @@ export default function ClaimsTable() {
                         <Table.Body>
                           {table.getRowModel().rows.map((row, i) => (
                             <Table.Row key={i}>
-                              {row.getVisibleCells().map((cell, cellIndex) => (
+                              {row.getVisibleCells().map((cell) => (
                                 <Table.Cell key={cell.id}>
                                   <Skeleton height={"20px"} width={"auto"} />
                                 </Table.Cell>

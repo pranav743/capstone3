@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-
-interface Claim {
-  id: string;
-  policyNumber: string;
-  status: string;
-  claimAmount: number;
-  dateOfClaim: string;
-  description: string;
-}
+import { Claim } from '@/app/api/claims/route';
 
 interface UseClaimsDataResult {
   data: ClaimsApiResponse | null;
