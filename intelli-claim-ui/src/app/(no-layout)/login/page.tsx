@@ -61,17 +61,8 @@ const Login = () => {
         alert(data.message);
         return;
       } else {
-        window.location.href = "/admin/show-claim";
+        window.location.href = "/redirect";
       }
-      // else {
-      //   const roles = data.roles;
-      //   console.log("User roles:", roles);
-      //   if (roles.includes("Admin") || roles.includes("approver")) {
-      //     window.location.href = "/admin/show-claim";
-      //   } else {
-      //     window.location.href = "/user/show-claim";
-      //   }
-      // }
     } catch (err) {
       console.error("Login error:", err);
       alert("Something went wrong!");

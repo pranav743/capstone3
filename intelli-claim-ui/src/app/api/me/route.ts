@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
     
     console.log("User Info1:", userInfo);
-    const userInfoData = {
+    const userInfoData: UserInfoData = {
       exp: userInfo.exp,
       iat: userInfo.iat,
       roles: userInfo.resource_access?.['capstone-3']?.roles,
