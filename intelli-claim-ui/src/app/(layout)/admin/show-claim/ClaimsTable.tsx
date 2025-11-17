@@ -94,27 +94,27 @@ export default function ClaimsTable() {
   const columnHelper = createColumnHelper<Claim>();
 
   const columns = [
-    columnHelper.display({
-      id: "select",
-      header: ({ table }: { table: ReactTable<Claim> }) => (
-        <Checkbox
-          checked={
-            table.getIsAllRowsSelected()
-              ? true
-              : table.getIsSomeRowsSelected()
-              ? "indeterminate"
-              : false
-          }
-          onChange={table.getToggleAllRowsSelectedHandler()}
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onChange={row.getToggleSelectedHandler()}
-        />
-      ),
-    }),
+    // columnHelper.display({
+    //   id: "select",
+    //   header: ({ table }: { table: ReactTable<Claim> }) => (
+    //     <Checkbox
+    //       checked={
+    //         table.getIsAllRowsSelected()
+    //           ? true
+    //           : table.getIsSomeRowsSelected()
+    //           ? "indeterminate"
+    //           : false
+    //       }
+    //       onChange={table.getToggleAllRowsSelectedHandler()}
+    //     />
+    //   ),
+    //   cell: ({ row }) => (
+    //     <Checkbox
+    //       checked={row.getIsSelected()}
+    //       onChange={row.getToggleSelectedHandler()}
+    //     />
+    //   ),
+    // }),
 
     columnHelper.accessor("id", {
       header: "ID",
@@ -229,19 +229,19 @@ export default function ClaimsTable() {
                   </TabsTrigger>
                   <TabsTrigger
                     onClick={(e) => changeActiveTab(e)}
-                    value="pending"
+                    value="Pending"
                   >
                     Pending
                   </TabsTrigger>
                   <TabsTrigger
                     onClick={(e) => changeActiveTab(e)}
-                    value="approved"
+                    value="Approved"
                   >
                     Approved
                   </TabsTrigger>
                   <TabsTrigger
                     onClick={(e) => changeActiveTab(e)}
-                    value="rejected"
+                    value="Rejected"
                   >
                     Rejected
                   </TabsTrigger>
