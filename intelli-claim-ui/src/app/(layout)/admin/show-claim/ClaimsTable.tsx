@@ -1,6 +1,6 @@
 "use client";
 import axios from "axios";
-import useClaimsData from "@/hooks/useClaimsData";
+import useClaimsData from "@/hooks/useClaimsData"
 import { Claim } from "@/app/api/claims/route";
 import {
   Button,
