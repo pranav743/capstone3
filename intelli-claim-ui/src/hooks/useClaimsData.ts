@@ -9,6 +9,7 @@ interface UseClaimsDataResult {
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
   setStatus: React.Dispatch<React.SetStateAction<string>>;
+  triggerRefetch: () => void;
 }
 
 interface ClaimsApiResponse {
@@ -25,6 +26,9 @@ const useClaimsData = (): UseClaimsDataResult => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>('all');
+  const [refetchToggle, setRefetchToggle] = useState(false);
+
+  const triggerRefetch = () => setRefetchToggle(!refetchToggle);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,9 +58,9 @@ const useClaimsData = (): UseClaimsDataResult => {
     return () => {
       controller.abort();
     };
-  }, [page, status]);
+  }, [page, status, refetchToggle]);
 
-  return { data, loading, error, page, setPage, setStatus };
+  return { data, loading, error, page, setPage, setStatus, triggerRefetch };
 };
 
 export default useClaimsData;

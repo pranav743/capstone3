@@ -181,9 +181,9 @@ export class AuthManager {
     } catch (error) {
       console.error("Login error:", error);
       if (axios.isAxiosError(error)) {
-        throw new Error(`Login failed: ${error.response?.data?.error_description || error.message}`);
+        throw new Error(`${error.response?.data?.error_description || error.message}`);
       }
-      throw new Error("Login failed: " + error);
+      throw new Error(`${error}`);
     }
   }
 

@@ -13,7 +13,7 @@ import {
 import { Eye, EyeSlash } from "@phosphor-icons/react";
 import React, { useState } from "react";
 import LoginPageHero from "../../../../public/login-page-hero.png";
-
+import axios from "axios";
 interface LoginFormData {
   username: string;
   password: string;
@@ -21,6 +21,8 @@ interface LoginFormData {
 
 const Login = () => {
   const [toggle, setToggle] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [disabled, setDisabled] = useState(false);
 
   // moved state + handlers here so the form actually uses them
   const [loginFormData, setLoginFormData] = useState<LoginFormData>({
@@ -39,36 +41,39 @@ const Login = () => {
   // Accepts either a form submit event or button click event (or undefined)
   const handleLoginSubmit = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
-
+    setDisabled(true);
     if (!loginFormData.username || !loginFormData.password) {
       alert("Please enter both username and password");
+      setDisabled(false);
       return;
     }
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
+      const response = await axios.post("/api/login", loginFormData, {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
-        body: JSON.stringify(loginFormData)
+        withCredentials: true,
       });
-
-      const data = await response.json();
-      console.log(data)
-      if (!response.ok) {
-        alert(data.message);
+      const data = response.data;
+      if (response.status !== 200) {
+        setErrorMessage(data.message);
+        setTimeout(() => setErrorMessage(null), 5000);
+        setDisabled(false);
         return;
       } else {
         window.location.href = "/redirect";
       }
     } catch (err) {
       console.error("Login error:", err);
-      alert("Something went wrong!");
+      setErrorMessage("An unexpected error occurred. Please try again.");
+      setTimeout(() => setErrorMessage(null), 5000);
+      setDisabled(false);
+      return;
     }
 
     setLoginFormData({ username: "", password: "" });
+    setDisabled(false);
   };
 
   return (
@@ -119,20 +124,22 @@ const Login = () => {
                   </IconButton>
                 }
               />
-              <div className="flex justify-between items-center gap-4">
+              {/* <div className="flex justify-between items-center gap-4">
                 <Checkbox label="Remember Me" size="sm" />
                 <Button size="xs" variant="link">
                   Forget Password?
                 </Button>
-              </div>
+              </div> */}
+              <div className="text-red-600 text-center">{errorMessage}</div>
               {/* keep onClick but also make this a submit so Enter key works */}
               <Button
+                disabled={disabled}
                 type="submit"
                 onClick={(e) => handleLoginSubmit(e)}
                 size="lg"
                 fullWidth
               >
-                Login
+                {disabled ? "Logging in..." : "Login"}
               </Button>
             </form>
           </Card>

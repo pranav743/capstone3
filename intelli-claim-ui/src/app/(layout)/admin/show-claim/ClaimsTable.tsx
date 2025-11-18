@@ -80,6 +80,8 @@ export default function ClaimsTable() {
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
+  const [recordStatusChangedInfo, setRecordStatusChangedInfo] = React.useState<string | null>(null);
+  const displayTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const {
     data: tableData,
     loading,
@@ -87,6 +89,7 @@ export default function ClaimsTable() {
     page,
     setPage,
     setStatus,
+    triggerRefetch
   } = useClaimsData();
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
@@ -172,9 +175,15 @@ export default function ClaimsTable() {
   ];
 
   const updateClaimStatus = async (id: number, newStatus: string) => {
+    if (displayTimeoutRef.current) {
+      clearTimeout(displayTimeoutRef.current);
+    }
     try {
       const res = await axios.post('/api/change-status', { id, newStatus });
-      console.log('Status updated:', res.data);
+      setRecordStatusChangedInfo(`Claim ID ${id} status updated to ${newStatus}`);
+      const displayTimeout = setTimeout(() => setRecordStatusChangedInfo(null), 5000);
+      displayTimeoutRef.current = displayTimeout;
+      triggerRefetch();
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -257,7 +266,9 @@ export default function ClaimsTable() {
                   </TabsTrigger>
                 </TabsList>
               </ScrollArea>
-
+              <Text className="w-full text-center text-gray-600 pt-3 font-[10px]">
+                {recordStatusChangedInfo}
+              </Text>
               <TabsContent value={activeTab}>
                 <Table.ScrollContainer type="always">
                   <Table withTableBorder>

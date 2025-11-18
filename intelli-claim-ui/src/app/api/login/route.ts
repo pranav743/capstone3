@@ -19,17 +19,15 @@ export async function POST(request: Request) {
     try {
       const res = NextResponse.json(
         {
-          message: "Login successful"
+          message: "Login successful",
         },
         { status: 200 }
       );
       await authManager.login(username, password, res);
-      console.log(res);
       return res;
     } catch (error) {
-        console.log(error)
       return NextResponse.json(
-        { error: "Invalid credentials : " + error },
+        { error: "Login failed", message: error instanceof Error ? error.message : String(error) },
         { status: 401 }
       );
     }
