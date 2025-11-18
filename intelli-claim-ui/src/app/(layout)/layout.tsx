@@ -7,9 +7,5 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-      <body >
-        <Navbar>{children}</Navbar>
-      </body>
-  );
+  return <Navbar>{children}</Navbar>;
 }
