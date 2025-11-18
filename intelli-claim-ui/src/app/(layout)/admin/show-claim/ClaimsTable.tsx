@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 import useClaimsData from "@/hooks/useClaimsData";
 import { Claim } from "@/app/api/claims/route";
 import {
@@ -157,18 +158,27 @@ export default function ClaimsTable() {
       id: "actions",
       header: "Actions",
       enableSorting: false,
-      cell: () => (
+      cell: (info) => (
         <Flex gap={2}>
-          <Button size="xs" variant="link">
+          <Button size="xs" onClick={() => updateClaimStatus(info.row.original.id, "Rejected")} variant="link">
             Reject
           </Button>
-          <Button size="xs" variant="link">
+          <Button size="xs" onClick={() => updateClaimStatus(info.row.original.id, "Approved")} variant="link">
             Approve
           </Button>
         </Flex>
       ),
     }),
   ];
+
+  const updateClaimStatus = async (id: number, newStatus: string) => {
+    try {
+      const res = await axios.post('/api/change-status', { id, newStatus });
+      console.log('Status updated:', res.data);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
 
   const table = useReactTable({
     data: tableData?.data || [],

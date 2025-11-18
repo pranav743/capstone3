@@ -200,6 +200,21 @@ class ApiClient {
     } as AxiosRequestConfig & { _context?: RequestContext });
   }
 
+  async patch<T = unknown>(
+    url: string, 
+    data?: unknown, 
+    context?: RequestContext, 
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
+    const headers = context ? this.getAuthHeaders(context.request) : {};
+    
+    return this.axiosInstance.patch<T>(url, data, {
+      ...config,
+      headers: { ...headers, ...config?.headers },
+      ...(context && { _context: context }),
+    } as AxiosRequestConfig & { _context?: RequestContext });
+  }
+
   // Method for external API calls (like Keycloak) without token refresh logic
   async external<T = unknown>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE',
