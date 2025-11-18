@@ -80,7 +80,9 @@ export default function ClaimsTable() {
   const [activeTab, setActiveTab] = React.useState<string>("all");
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
-  const [recordStatusChangedInfo, setRecordStatusChangedInfo] = React.useState<string | null>(null);
+  const [recordStatusChangedInfo, setRecordStatusChangedInfo] = React.useState<
+    string | null
+  >(null);
   const displayTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const {
     data: tableData,
@@ -89,7 +91,7 @@ export default function ClaimsTable() {
     page,
     setPage,
     setStatus,
-    triggerRefetch
+    triggerRefetch,
   } = useClaimsData();
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
@@ -163,10 +165,18 @@ export default function ClaimsTable() {
       enableSorting: false,
       cell: (info) => (
         <Flex gap={2}>
-          <Button size="xs" onClick={() => updateClaimStatus(info.row.original.id, "Rejected")} variant="link">
+          <Button
+            size="xs"
+            onClick={() => updateClaimStatus(info.row.original.id, "Rejected")}
+            variant="link"
+          >
             Reject
           </Button>
-          <Button size="xs" onClick={() => updateClaimStatus(info.row.original.id, "Approved")} variant="link">
+          <Button
+            size="xs"
+            onClick={() => updateClaimStatus(info.row.original.id, "Approved")}
+            variant="link"
+          >
             Approve
           </Button>
         </Flex>
@@ -179,13 +189,18 @@ export default function ClaimsTable() {
       clearTimeout(displayTimeoutRef.current);
     }
     try {
-      const res = await axios.post('/api/change-status', { id, newStatus });
-      setRecordStatusChangedInfo(`Claim ID ${id} status updated to ${newStatus}`);
-      const displayTimeout = setTimeout(() => setRecordStatusChangedInfo(null), 5000);
+      const res = await axios.post("/api/change-status", { id, newStatus });
+      setRecordStatusChangedInfo(
+        `Claim ID ${id} status updated to ${newStatus}`
+      );
+      const displayTimeout = setTimeout(
+        () => setRecordStatusChangedInfo(null),
+        5000
+      );
       displayTimeoutRef.current = displayTimeout;
       triggerRefetch();
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error("Error updating status:", error);
     }
   };
 
